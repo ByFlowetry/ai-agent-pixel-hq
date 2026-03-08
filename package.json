@@ -1,0 +1,17 @@
+{
+  "name": "pixel-office-welcome",
+  "displayName": "⬛ Pixel Office — AI Team HQ",
+  "description": "A pixel art office that reacts to your AI assistant's activity. Your crew ships code when Claude is active, chills when it's idle.",
+  "version": "1.0.0",
+  "publisher": "your-github-username",
+  "engines": { "vscode": "^1.70.0" },
+  "activationEvents": ["onStartupFinished"],
+  "main": "./extension.js",
+  "contributes": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-github-username/pixel-office"
+  },
+  "keywords": ["pixel art", "claude", "ai", "animation", "welcome screen"],
+  "license": "MIT"
+}
