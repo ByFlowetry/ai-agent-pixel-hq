@@ -327,8 +327,8 @@ function drawWallDecor() {
   p(bg, 3, 164, 40, 1, '#4A2810');   // shadow line
   p(bg, 6, 165, 3, 12, '#6B4020');   // left leg
   p(bg, 5, 176, 5, 2, '#4A2810');    // left foot
-  p(bg, 33, 165, 3, 12, '#6B4020');  // right leg
-  p(bg, 32, 176, 5, 2, '#4A2810');   // right foot
+  p(bg, 37, 165, 3, 12, '#6B4020');  // right leg
+  p(bg, 36, 176, 5, 2, '#4A2810');   // right foot
 
   const cmx=5, cmy=130;
   p(bg,cmx,cmy,20,30,'#2A2A2A');
