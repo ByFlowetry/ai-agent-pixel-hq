@@ -40,20 +40,42 @@ It also falls back to watching workspace file changes, so it works without hooks
 
 ### Wiring Up Claude Code Hooks
 
-For the sharpest activity detection, add these hooks to `~/.claude/settings.json`:
+For live status updates, add these hooks to `~/.claude/settings.json`. Each tool type maps to a distinct status:
+
+| Tools | Status shown |
+|-------|-------------|
+| Read, Grep, Glob, WebSearch, WebFetch, Agent | RESEARCHING |
+| Edit, Write, NotebookEdit | BUILDING |
+| Bash | SHIPPING |
+| AskUserQuestion, ExitPlanMode | WAITING |
+| *(turn ends)* | CHILLING |
 
 ```json
 {
   "hooks": {
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": "touch ~/.claude/hq-researching" }] }
+    ],
     "PreToolUse": [
       {
-        "hooks": [{ "type": "command", "command": "touch ~/.claude/hq-active" }]
+        "matcher": "Read|Grep|Glob|WebSearch|WebFetch|Agent",
+        "hooks": [{ "type": "command", "command": "touch ~/.claude/hq-researching" }]
+      },
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [{ "type": "command", "command": "touch ~/.claude/hq-building" }]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [{ "type": "command", "command": "touch ~/.claude/hq-shipping" }]
+      },
+      {
+        "matcher": "AskUserQuestion|ExitPlanMode",
+        "hooks": [{ "type": "command", "command": "touch ~/.claude/hq-waiting" }]
       }
     ],
     "Stop": [
-      {
-        "hooks": [{ "type": "command", "command": "touch ~/.claude/hq-done" }]
-      }
+      { "hooks": [{ "type": "command", "command": "touch ~/.claude/hq-done" }] }
     ]
   }
 }

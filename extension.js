@@ -15,35 +15,40 @@ function activate(context) {
 
   let idleTimer = null;
 
-  function goActive() {
+  function goStatus(status, timeout) {
     clearTimeout(idleTimer);
-    panel.webview.postMessage({ type: 'mode', value: 'active' });
-    // Safety-net only — Stop hook is the primary idle trigger
+    panel.webview.postMessage({ type: 'status', value: status });
+    // Safety-net — Stop hook is the primary idle trigger; COMPACTING auto-idles in 60s
     idleTimer = setTimeout(() => {
-      panel.webview.postMessage({ type: 'mode', value: 'idle' });
-    }, 300000);
+      panel.webview.postMessage({ type: 'status', value: 'CHILLING' });
+    }, timeout || 300000);
   }
 
   function goIdle() {
     clearTimeout(idleTimer);
-    panel.webview.postMessage({ type: 'mode', value: 'idle' });
+    panel.webview.postMessage({ type: 'status', value: 'CHILLING' });
   }
 
-  // Watch ~/.claude/ directory — hq-active touched on every prompt+tool call,
-  // hq-done touched by the Stop hook when Claude's turn ends
+  // Watch ~/.claude/ signal files via polling (reliable on macOS for mtime changes)
   const claudeDir = path.join(os.homedir(), '.claude');
-  try {
-    fs.watch(claudeDir, (eventType, filename) => {
-      if (filename === 'hq-active') goActive();
-      if (filename === 'hq-done')   goIdle();
+  const signals = {
+    'hq-researching': () => goStatus('RESEARCHING'),
+    'hq-building':    () => goStatus('BUILDING'),
+    'hq-shipping':    () => goStatus('SHIPPING'),
+    'hq-waiting':     () => goStatus('WAITING'),
+    'hq-compacting':  () => goStatus('COMPACTING', 60000),
+    'hq-done':        () => goIdle(),
+  };
+  Object.entries(signals).forEach(function([file, fn]) {
+    const fp = path.join(claudeDir, file);
+    fs.watchFile(fp, { interval: 500, persistent: false }, function(curr, prev) {
+      if (curr.mtimeMs !== prev.mtimeMs) fn();
     });
-  } catch(e) {
-    // fall back to workspace events
-  }
+  });
 
-  // Fallback: workspace file changes (catches Claude's file edits)
-  context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(() => goActive()));
-  context.subscriptions.push(vscode.workspace.onDidSaveTextDocument(() => goActive()));
+  // Fallback: workspace file changes
+  context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(() => goStatus('BUILDING')));
+  context.subscriptions.push(vscode.workspace.onDidSaveTextDocument(() => goStatus('BUILDING')));
 }
 
 function getHtml() {
@@ -100,8 +105,8 @@ body {
 <div class="title">★ AI TEAM HEADQUARTERS ★</div>
 <canvas id="cvs" width="900" height="540"></canvas>
 <div class="statusbar">
-  <div>EMPLOYEES: <span id="employees">0 / 5 ONLINE</span></div>
-  <div>VIBE: <span id="vibe">CHILLING</span></div>
+  <div>AGENTS: <span id="employees">0 / 5 ONLINE</span></div>
+  <div>STATUS: <span id="vibe">CHILLING</span></div>
 </div>
 
 <script>
@@ -109,10 +114,11 @@ let globalMode = 'idle';
 
 window.addEventListener('message', function(event) {
   const msg = event.data;
-  if (msg.type === 'mode') {
-    globalMode = msg.value;
-    document.getElementById('vibe').textContent      = msg.value === 'active' ? 'SHIPPING'     : 'CHILLING';
-    document.getElementById('employees').textContent = msg.value === 'active' ? '5 / 5 ONLINE' : '0 / 5 ONLINE';
+  if (msg.type === 'status') {
+    const active = msg.value !== 'CHILLING';
+    globalMode = active ? 'active' : 'idle';
+    document.getElementById('vibe').textContent      = msg.value;
+    document.getElementById('employees').textContent = active ? '5 / 5 ONLINE' : '0 / 5 ONLINE';
   }
 });
 
@@ -315,7 +321,16 @@ function drawWallDecor() {
     });
   });
 
-  const cmx=1, cmy=130;
+  // Break station table
+  p(bg, 3, 160, 40, 2, '#A07850');   // table top surface
+  p(bg, 3, 162, 40, 2, '#7A5530');   // table front edge
+  p(bg, 3, 164, 40, 1, '#4A2810');   // shadow line
+  p(bg, 6, 165, 3, 12, '#6B4020');   // left leg
+  p(bg, 5, 176, 5, 2, '#4A2810');    // left foot
+  p(bg, 33, 165, 3, 12, '#6B4020');  // right leg
+  p(bg, 32, 176, 5, 2, '#4A2810');   // right foot
+
+  const cmx=5, cmy=130;
   p(bg,cmx,cmy,20,30,'#2A2A2A');
   p(bg,cmx+1,cmy+1,18,28,'#383838');
   p(bg,cmx+1,cmy+5,18,2,'#AA1100');
@@ -336,7 +351,7 @@ function drawWallDecor() {
   p(bg,cmx+2,cmy+1,4,3,'#111');
   p(bg,cmx+3,cmy+2,5,1,'#FFAA00');
 
-  const plx=248, ply=130;
+  const plx=229, ply=65;
   p(bg,plx+3,ply+15,16,2,'#8B4513');
   p(bg,plx+4,ply+17,14,10,'#9B5523');
   p(bg,plx+6,ply+27,10,2,'#8B4513');
@@ -353,12 +368,14 @@ function drawWallDecor() {
     p(bg,plx+l[0]+1,ply+l[1]+1,2,2,lum(l[4],40));
   });
 
-  p(bg,22,148,10,20,'#444455');
-  p(bg,23,149,8,18,'#333344');
-  p(bg,22,148,10,2,'#555566');
-  p(bg,24,147,6,1,'#666677');
-  p(bg,25,150,1,15,'#3A3A4A');
-  p(bg,27,150,1,15,'#3A3A4A');
+  // Coffee mug
+  p(bg, 27, 152, 9, 8, '#F5F5F0');   // mug body
+  p(bg, 27, 152, 9, 1, '#DDDDCC');   // mug rim
+  p(bg, 28, 153, 7, 3, '#EAEAE2');   // empty mug interior
+  p(bg, 36, 154, 2, 1, '#E0E0D8');   // handle top
+  p(bg, 37, 155, 1, 3, '#E0E0D8');   // handle right
+  p(bg, 36, 158, 2, 1, '#E0E0D8');   // handle bottom
+  p(bg, 27, 159, 9, 1, '#CCCCBA');   // mug base shadow
 
   p(bg,278,130,14,40,'#DDDDEE');
   p(bg,279,131,12,38,'#EEEEFF');
@@ -503,8 +520,8 @@ function drawWindowAnim(c, f) {
 function drawSteam(c, f) {
   const phase = (f/15)%6|0;
   const steamPts = [
-    [[6,128],[8,126]],[[7,127],[9,125]],[[5,127],[7,125]],
-    [[6,127],[8,125]],[[7,128],[9,126]],[[5,128],[7,126]],
+    [[10,128],[12,126]],[[11,127],[13,125]],[[9,127],[11,125]],
+    [[10,127],[12,125]],[[11,128],[13,126]],[[9,128],[11,126]],
   ];
   c.fillStyle='#FFFFFF99';
   steamPts[phase].forEach(function(pt){c.fillRect(pt[0]*S,pt[1]*S,S,S);});
