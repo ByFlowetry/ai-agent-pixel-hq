@@ -45,10 +45,6 @@ function activate(context) {
       if (curr.mtimeMs !== prev.mtimeMs) fn();
     });
   });
-
-  // Fallback: workspace file changes
-  context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(() => goStatus('BUILDING')));
-  context.subscriptions.push(vscode.workspace.onDidSaveTextDocument(() => goStatus('BUILDING')));
 }
 
 function getHtml() {
