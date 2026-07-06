@@ -36,7 +36,7 @@ function activate(context) {
     'hq-building':    () => goStatus('BUILDING'),
     'hq-shipping':    () => goStatus('SHIPPING'),
     'hq-waiting':     () => goStatus('WAITING'),
-    'hq-compacting':  () => goStatus('COMPACTING', 60000),
+    'hq-compacting':  () => goStatus('COMPACTING', 8000),
     'hq-done':        () => goIdle(),
   };
   Object.entries(signals).forEach(function([file, fn]) {
